@@ -163,6 +163,7 @@ const history=[];
 function flip(){
   if(flipping) return;
   flipping=true;
+  playFlipSound();
   const btn=document.getElementById('flip-btn');
   btn.disabled=true;
   const result=Math.random()<.5?'heads':'tails';
@@ -232,6 +233,43 @@ function resetStats(){
 }
 
 document.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();flip();} });
+
+function playFlipSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Whoosh sound -- coin spinning through air
+    const bufSize = ctx.sampleRate * 0.4;
+    const buf  = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/bufSize);
+    const noise = ctx.createBufferSource();
+    const filt  = ctx.createBiquadFilter();
+    const gain  = ctx.createGain();
+    noise.buffer = buf;
+    filt.type = 'bandpass';
+    filt.frequency.setValueAtTime(2000, ctx.currentTime);
+    filt.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.4);
+    filt.Q.value = 2;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    noise.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+    noise.start(); noise.stop(ctx.currentTime + 0.4);
+
+    // Landing clink -- metallic ping
+    setTimeout(() => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(1800, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.3);
+      g.gain.setValueAtTime(0.25, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      o.start(); o.stop(ctx.currentTime + 0.35);
+    }, 950);
+  } catch(e) {}
+}
 </script>
 </body>
 </html>
